@@ -3,7 +3,7 @@
 describe('example SmartUI test', () => {
   beforeEach(() => {
 
-    cy.visit('https://www.lambdatest.com/visual-regression-testing')
+    cy.visit('https://ipinfo.io/')
   })
 
   it('test smartuiSnapshot', () => {
