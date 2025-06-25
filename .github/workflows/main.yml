@@ -1,0 +1,57 @@
+name: Cypress SmartUI Wrapper CI
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  LT_USERNAME: ${{ secrets.LT_USERNAME }}
+  LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+  PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+  LT_SDK_DEBUG: true
+  SMARTUI_DEBUG: true
+
+jobs:
+  smartui-cypress-sdk:
+    name: Execute Cypress SmartUI build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install Dependencies
+        run: |
+          npm i @lambdatest/smartui-cli @lambdatest/cypress-driver cypress@v13
+          
+      - name: Verify Cypress installation
+        run: npx cypress verify
+        
+      - name: Create SmartUI Config
+        run: npx smartui config:create smartui-web.json
+        
+      - name: Execute Cypress Tests with SmartUI
+        run: |
+          npx smartui --version
+          npx smartui --config smartui-web.json exec -- npx cypress run --spec "cypress/e2e/**/*.cy.js" --browser chrome --headless
+          
+      - name: Upload Cypress Screenshots (on failure)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots
+          
+      - name: Upload Cypress Videos (on failure)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-videos
+          path: cypress/videos
