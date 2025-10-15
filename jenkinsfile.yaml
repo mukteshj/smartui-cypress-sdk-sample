@@ -1,0 +1,74 @@
+pipeline {
+    agent any
+
+    environment {
+        LT_USERNAME    = credentials('LT_USERNAME')     // Jenkins credential ID
+        LT_ACCESS_KEY  = credentials('LT_ACCESS_KEY')   // Jenkins credential ID
+        PROJECT_TOKEN  = credentials('PROJECT_TOKEN')   // Jenkins credential ID
+        LT_SDK_DEBUG   = 'true'
+        SMARTUI_DEBUG  = 'true'
+    }
+
+    options {
+        ansiColor('xterm')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup Node.js') {
+            steps {
+                sh '''
+                    # Install Node.js v18 if not already installed
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                    sudo apt-get install -y nodejs
+                    
+                    node -v
+                    npm -v
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    npm install @lambdatest/smartui-cli @lambdatest/cypress-driver cypress@13
+                '''
+            }
+        }
+
+        stage('Verify Cypress Installation') {
+            steps {
+                sh 'npx cypress verify'
+            }
+        }
+
+        stage('Create SmartUI Config') {
+            steps {
+                sh 'npx smartui config:create smartui-web.json'
+            }
+        }
+
+        stage('Run Cypress Tests with SmartUI') {
+            steps {
+                sh '''
+                    npx smartui --version
+                    npx smartui --config smartui-web.json exec -- \
+                      npx cypress run --spec "cypress/e2e/**/*.cy.js" --browser chrome --headless
+                '''
+            }
+        }
+    }
+
+    post {
+        failure {
+            // Archive test artifacts if test fails
+            archiveArtifacts artifacts: 'cypress/screenshots/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'cypress/videos/**', allowEmptyArchive: true
+        }
+    }
+}
